@@ -18,29 +18,37 @@ def merge(ids, pair, idx):
       i += 1
   return newids
 
-def tokenize(text, vocab_size):
+def train(text):
     tokens = list(text.encode("utf-8"))
-    # print(f"{[chr(t) for t in tokens]}")
+    tokens = list(map(int, tokens))
+    vocab_size = 276
+    num_merges = vocab_size - 256
+    ids = list(tokens)
 
     merges = {}
-    num_merges = vocab_size - 256
-
-    for _ in range(num_merges):
-        stats = get_stats(tokens)
-        if not stats:
-            break
+    for i in range(num_merges):
+        stats = get_stats(ids)
         pair = max(stats, key=stats.get)
-        new_token_index = 256 + len(merges)
-        merges[pair] = new_token_index
-        tokens = merge(tokens, pair, new_token_index)
+        idx = 256 + i
+        print(f"merging {pair} into a new token {idx}")
+        ids = merge(ids, pair, idx)
+        merges[pair] = idx
+    return merges
 
+def encode(text, merges):
+  tokens = list(text.encode("utf-8"))
+  while len(tokens) >= 2:
+    stats = get_stats(tokens)
+    pair = min(stats, key=lambda p: merges.get(p, float("inf")))
+    if pair not in merges:
+      break
+    idx = merges[pair]
+    tokens = merge(tokens, pair, idx)
+  return tokens
+
+def decode(ids, merges):
     for (p0, p1), idx in merges.items():
         vocab[idx] = vocab[p0] + vocab[p1]
-    print("Tokens:\n")
-    printed_tokens = set()
-    for token in tokens:
-        token_str = vocab[token].decode("utf-8", errors="replace")
-        if token_str not in printed_tokens:
-            print(token_str)
-            printed_tokens.add(token_str)
-# tokenize(text="banan bandana", vocab_size=257)
+    decoded_tokens = [vocab[idx].decode("utf-8", errors="replace") for idx in ids]
+    return decoded_tokens
+
