@@ -3,6 +3,7 @@ nltk.download('punkt')
 nltk.download('punkt_tab')
 import tiktoken
 import random
+import numpy as np
 
 enc = tiktoken.get_encoding("cl100k_base")
 
@@ -27,9 +28,9 @@ def generate_bigram(corpus):
 	
 	return probabilities
 	
-def perplexity(probabilities, test_text):
+def perplexity(probabilities, test_file):
     # tokeniza o teste
-	with open(test_text, 'r') as f:
+	with open(test_file, 'r') as f:
 		test = f.read()
 	sentences = [f"<|endoftext|> {sentence} <|endoftext|>" for sentence in nltk.sent_tokenize(test)]
 	tokens_test = enc.encode("".join(sentences),allowed_special="all")
@@ -37,15 +38,17 @@ def perplexity(probabilities, test_text):
 	# calcula perplexidade do teste baseado nas probabilidades do treino
 	perplexity = 1
 	N = len(tokens_test)
-	for ch1, ch2 in zip(tokens_test, tokens_test[1:]):
-		perplexity = (perplexity * ((1/probabilities.get((ch1,ch2), 1))) ** (1/N))
+	summ = 0
+	for bigram in zip(tokens_test[:-1], tokens_test[1:]):
+		summ += (np.log(probabilities.get(bigram, 1e-6))/ N)
+	perplexity = np.exp(-summ)
 	return perplexity
     
  
-def generate_text(probablities, num_of_tokens):
-	token = 100257 # token inicial
+def generate_text(probablities, num_of_tokens, first_token):
+	token = enc.encode(first_token, allowed_special="all")[0]
 	i = 0
-	text = ""
+	text = first_token
 	for i in range(num_of_tokens):
 		# Pega todas as chaves do dicionario que o primeiro termo da tupla = token
 		keys = [key[1] for key in probablities if key[0] == token]
